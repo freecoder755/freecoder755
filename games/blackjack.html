@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>21点游戏 - FreeCoder</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #1a1a1a, #2a2a2a);
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .game-container {
+            width: 100%;
+            max-width: 1200px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .game-title {
+            text-align: center;
+            font-size: 2.5em;
+            margin-bottom: 30px;
+            color: #ffd700;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+        }
+
+        .game-area {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+
+        .dealer-area, .player-area {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            min-height: 200px;
+        }
+
+        .area-title {
+            font-size: 1.5em;
+            margin-bottom: 15px;
+            color: #fff;
+        }
+
+        .cards-container {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            min-height: 150px;
+        }
+
+        .card {
+            width: 120px;
+            height: 180px;
+            background: #fff;
+            border-radius: 10px;
+            position: relative;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .btn {
+            padding: 12px 25px;
+            font-size: 1.1em;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+
+        .btn-hit {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-stand {
+            background: #f44336;
+            color: white;
+        }
+
+        .btn-new-game {
+            background: #2196F3;
+            color: white;
+        }
+
+        .btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .score {
+            font-size: 1.2em;
+            margin-bottom: 10px;
+            color: #ffd700;
+        }
+
+        .message {
+            text-align: center;
+            font-size: 1.5em;
+            margin: 20px 0;
+            color: #ffd700;
+            text-shadow: 0 0 5px rgba(255, 215, 0, 0.3);
+        }
+
+        @keyframes cardDeal {
+            from {
+                transform: translateX(-1000px) rotate(-180deg);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0) rotate(0);
+                opacity: 1;
+            }
+        }
+
+        .card-dealt {
+            animation: cardDeal 0.5s ease-out;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1 class="game-title">21点游戏</h1>
+        <div class="game-area">
+            <div class="dealer-area">
+                <h2 class="area-title">庄家</h2>
+                <div class="score" id="dealer-score">得分: 0</div>
+                <div class="cards-container" id="dealer-cards"></div>
+            </div>
+            <div class="player-area">
+                <h2 class="area-title">玩家</h2>
+                <div class="score" id="player-score">得分: 0</div>
+                <div class="cards-container" id="player-cards"></div>
+            </div>
+        </div>
+        <div class="message" id="message"></div>
+        <div class="controls">
+            <button class="btn btn-new-game" id="new-game">新游戏</button>
+            <button class="btn btn-hit" id="hit">要牌</button>
+            <button class="btn btn-stand" id="stand">停牌</button>
+        </div>
+    </div>
+
+    <script>
+        // 游戏状态
+        let gameState = {
+            deck: [],
+            playerHand: [],
+            dealerHand: [],
+            gameOver: true,
+            playerScore: 0,
+            dealerScore: 0
+        };
+
+        // 卡牌花色和点数
+        const suits = ['♠', '♥', '♦', '♣'];
+        const values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+
+        // 初始化牌组
+        function initializeDeck() {
+            const deck = [];
+            for (let suit of suits) {
+                for (let value of values) {
+                    deck.push({ suit, value });
+                }
+            }
+            return shuffle(deck);
+        }
+
+        // 洗牌函数
+        function shuffle(deck) {
+            for (let i = deck.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [deck[i], deck[j]] = [deck[j], deck[i]];
+            }
+            return deck;
+        }
+
+        // 计算手牌分数
+        function calculateScore(hand) {
+            let score = 0;
+            let aces = 0;
+
+            for (let card of hand) {
+                if (card.value === 'A') {
+                    aces += 1;
+                } else if (['K', 'Q', 'J'].includes(card.value)) {
+                    score += 10;
+                } else {
+                    score += parseInt(card.value);
+                }
+            }
+
+            // 处理A的特殊情况
+            for (let i = 0; i < aces; i++) {
+                if (score + 11 <= 21) {
+                    score += 11;
+                } else {
+                    score += 1;
+                }
+            }
+
+            return score;
+        }
+
+        // 创建卡牌元素
+        function createCardElement(card, hidden = false) {
+            const cardElement = document.createElement('div');
+            cardElement.className = 'card card-dealt';
+            
+            if (hidden) {
+                cardElement.style.background = '#2a2a2a';
+                return cardElement;
+            }
+
+            const color = ['♥', '♦'].includes(card.suit) ? 'red' : 'black';
+            cardElement.style.color = color;
+            cardElement.style.display = 'flex';
+            cardElement.style.justifyContent = 'center';
+            cardElement.style.alignItems = 'center';
+            cardElement.style.fontSize = '2em';
+            cardElement.innerHTML = `${card.value}${card.suit}`;
+
+            return cardElement;
+        }
+
+        // 更新界面
+        function updateUI() {
+            const playerCardsContainer = document.getElementById('player-cards');
+            const dealerCardsContainer = document.getElementById('dealer-cards');
+            const playerScoreElement = document.getElementById('player-score');
+            const dealerScoreElement = document.getElementById('dealer-score');
+
+            // 清空容器
+            playerCardsContainer.innerHTML = '';
+            dealerCardsContainer.innerHTML = '';
+
+            // 显示玩家卡牌
+            gameState.playerHand.forEach(card => {
+                playerCardsContainer.appendChild(createCardElement(card));
+            });
+
+            // 显示庄家卡牌
+            gameState.dealerHand.forEach((card, index) => {
+                if (index === 0 && !gameState.gameOver) {
+                    dealerCardsContainer.appendChild(createCardElement(card, true));
+                } else {
+                    dealerCardsContainer.appendChild(createCardElement(card));
+                }
+            });
+
+            // 更新分数
+            playerScoreElement.textContent = `得分: ${gameState.playerScore}`;
+            dealerScoreElement.textContent = `得分: ${gameState.gameOver ? gameState.dealerScore : '?'}`;
+        }
+
+        // 开始新游戏
+        function startNewGame() {
+            gameState = {
+                deck: initializeDeck(),
+                playerHand: [],
+                dealerHand: [],
+                gameOver: false,
+                playerScore: 0,
+                dealerScore: 0
+            };
+
+            // 发初始牌
+            gameState.playerHand.push(gameState.deck.pop());
+            gameState.dealerHand.push(gameState.deck.pop());
+            gameState.playerHand.push(gameState.deck.pop());
+            gameState.dealerHand.push(gameState.deck.pop());
+
+            // 计算分数
+            gameState.playerScore = calculateScore(gameState.playerHand);
+            gameState.dealerScore = calculateScore(gameState.dealerHand);
+
+            // 更新界面
+            updateUI();
+            document.getElementById('message').textContent = '';
+            
+            // 启用按钮
+            document.getElementById('hit').disabled = false;
+            document.getElementById('stand').disabled = false;
+        }
+
+        // 要牌
+        function hit() {
+            if (gameState.gameOver) return;
+
+            gameState.playerHand.push(gameState.deck.pop());
+            gameState.playerScore = calculateScore(gameState.playerHand);
+
+            if (gameState.playerScore > 21) {
+                endGame('爆牌了！庄家胜！');
+            }
+
+            updateUI();
+        }
+
+        // 停牌
+        function stand() {
+            if (gameState.gameOver) return;
+
+            // 庄家要牌
+            while (gameState.dealerScore < 17) {
+                gameState.dealerHand.push(gameState.deck.pop());
+                gameState.dealerScore = calculateScore(gameState.dealerHand);
+            }
+
+            // 判断胜负
+            if (gameState.dealerScore > 21) {
+                endGame('庄家爆牌！你赢了！');
+            } else if (gameState.dealerScore > gameState.playerScore) {
+                endGame('庄家赢了！');
+            } else if (gameState.dealerScore < gameState.playerScore) {
+                endGame('恭喜你赢了！');
+            } else {
+                endGame('平局！');
+            }
+        }
+
+        // 结束游戏
+        function endGame(message) {
+            gameState.gameOver = true;
+            document.getElementById('message').textContent = message;
+            document.getElementById('hit').disabled = true;
+            document.getElementById('stand').disabled = true;
+            updateUI();
+        }
+
+        // 事件监听
+        document.getElementById('new-game').addEventListener('click', startNewGame);
+        document.getElementById('hit').addEventListener('click', hit);
+        document.getElementById('stand').addEventListener('click', stand);
+
+        // 初始化游戏
+        startNewGame();
+    </script>
+</body>
+</html> 
