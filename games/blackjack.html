@@ -23,15 +23,15 @@
 
         .game-container {
             width: 100%;
-            max-width: 1200px;
-            padding: 20px;
-            margin-top: 20px;
+            max-width: 800px;
+            padding: 15px;
+            margin-top: 15px;
         }
 
         .game-title {
             text-align: center;
-            font-size: 2.5em;
-            margin-bottom: 30px;
+            font-size: 2em;
+            margin-bottom: 20px;
             color: #ffd700;
             text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
         }
@@ -39,34 +39,34 @@
         .game-area {
             display: flex;
             flex-direction: column;
-            gap: 30px;
+            gap: 20px;
         }
 
         .dealer-area, .player-area {
             background: rgba(0, 0, 0, 0.3);
-            border-radius: 15px;
-            padding: 20px;
-            min-height: 200px;
+            border-radius: 12px;
+            padding: 15px;
+            min-height: 150px;
         }
 
         .area-title {
-            font-size: 1.5em;
-            margin-bottom: 15px;
+            font-size: 1.2em;
+            margin-bottom: 10px;
             color: #fff;
         }
 
         .cards-container {
             display: flex;
-            gap: 10px;
+            gap: 8px;
             flex-wrap: wrap;
-            min-height: 150px;
+            min-height: 120px;
         }
 
         .card {
-            width: 120px;
-            height: 180px;
+            width: 80px;
+            height: 120px;
             background: #fff;
-            border-radius: 10px;
+            border-radius: 8px;
             position: relative;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
             transition: transform 0.3s ease;
@@ -78,16 +78,16 @@
 
         .controls {
             display: flex;
-            gap: 15px;
+            gap: 10px;
             justify-content: center;
-            margin-top: 20px;
+            margin-top: 15px;
         }
 
         .btn {
-            padding: 12px 25px;
-            font-size: 1.1em;
+            padding: 8px 20px;
+            font-size: 1em;
             border: none;
-            border-radius: 8px;
+            border-radius: 6px;
             cursor: pointer;
             transition: all 0.3s ease;
             text-transform: uppercase;
@@ -120,15 +120,15 @@
         }
 
         .score {
-            font-size: 1.2em;
-            margin-bottom: 10px;
+            font-size: 1.1em;
+            margin-bottom: 8px;
             color: #ffd700;
         }
 
         .message {
             text-align: center;
-            font-size: 1.5em;
-            margin: 20px 0;
+            font-size: 1.2em;
+            margin: 15px 0;
             color: #ffd700;
             text-shadow: 0 0 5px rgba(255, 215, 0, 0.3);
         }
@@ -146,6 +146,73 @@
 
         .card-dealt {
             animation: cardDeal 0.5s ease-out;
+        }
+
+        /* 对话框样式 */
+        .dialog-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .dialog {
+            background: linear-gradient(135deg, #2a2a2a, #3a3a3a);
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            position: relative;
+            animation: dialogShow 0.3s ease-out;
+        }
+
+        @keyframes dialogShow {
+            from {
+                transform: scale(0.8);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .dialog-title {
+            font-size: 1.5em;
+            color: #ffd700;
+            margin-bottom: 15px;
+            text-shadow: 0 0 5px rgba(255, 215, 0, 0.3);
+        }
+
+        .dialog-content {
+            font-size: 1.2em;
+            margin-bottom: 20px;
+            color: #fff;
+            line-height: 1.4;
+        }
+
+        .dialog-button {
+            background: #ffd700;
+            color: #2a2a2a;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 5px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .dialog-button:hover {
+            background: #ffed4a;
+            transform: scale(1.05);
         }
     </style>
 </head>
@@ -172,6 +239,15 @@
         </div>
     </div>
 
+    <!-- 对话框 -->
+    <div class="dialog-overlay" id="dialog-overlay">
+        <div class="dialog">
+            <div class="dialog-title">游戏结果</div>
+            <div class="dialog-content" id="dialog-content"></div>
+            <button class="dialog-button" id="dialog-close">开始新游戏</button>
+        </div>
+    </div>
+
     <script>
         // 游戏状态
         let gameState = {
@@ -186,6 +262,22 @@
         // 卡牌花色和点数
         const suits = ['♠', '♥', '♦', '♣'];
         const values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+
+        // 对话框元素
+        const dialogOverlay = document.getElementById('dialog-overlay');
+        const dialogContent = document.getElementById('dialog-content');
+        const dialogClose = document.getElementById('dialog-close');
+
+        // 显示对话框
+        function showDialog(message) {
+            dialogContent.textContent = message;
+            dialogOverlay.style.display = 'flex';
+        }
+
+        // 隐藏对话框
+        function hideDialog() {
+            dialogOverlay.style.display = 'none';
+        }
 
         // 初始化牌组
         function initializeDeck() {
@@ -249,7 +341,7 @@
             cardElement.style.display = 'flex';
             cardElement.style.justifyContent = 'center';
             cardElement.style.alignItems = 'center';
-            cardElement.style.fontSize = '2em';
+            cardElement.style.fontSize = '1.5em';
             cardElement.innerHTML = `${card.value}${card.suit}`;
 
             return cardElement;
@@ -287,6 +379,7 @@
 
         // 开始新游戏
         function startNewGame() {
+            hideDialog();
             gameState = {
                 deck: initializeDeck(),
                 playerHand: [],
@@ -340,30 +433,34 @@
             }
 
             // 判断胜负
+            let message = '';
             if (gameState.dealerScore > 21) {
-                endGame('庄家爆牌！你赢了！');
+                message = '庄家爆牌！\n你赢了！';
             } else if (gameState.dealerScore > gameState.playerScore) {
-                endGame('庄家赢了！');
+                message = `庄家点数：${gameState.dealerScore}\n你的点数：${gameState.playerScore}\n庄家赢了！`;
             } else if (gameState.dealerScore < gameState.playerScore) {
-                endGame('恭喜你赢了！');
+                message = `庄家点数：${gameState.dealerScore}\n你的点数：${gameState.playerScore}\n恭喜你赢了！`;
             } else {
-                endGame('平局！');
+                message = `庄家点数：${gameState.dealerScore}\n你的点数：${gameState.playerScore}\n平局！`;
             }
+            endGame(message);
         }
 
         // 结束游戏
         function endGame(message) {
             gameState.gameOver = true;
-            document.getElementById('message').textContent = message;
+            document.getElementById('message').textContent = '';
             document.getElementById('hit').disabled = true;
             document.getElementById('stand').disabled = true;
             updateUI();
+            showDialog(message);
         }
 
         // 事件监听
         document.getElementById('new-game').addEventListener('click', startNewGame);
         document.getElementById('hit').addEventListener('click', hit);
         document.getElementById('stand').addEventListener('click', stand);
+        dialogClose.addEventListener('click', startNewGame);
 
         // 初始化游戏
         startNewGame();
