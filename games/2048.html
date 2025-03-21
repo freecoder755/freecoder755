@@ -256,8 +256,10 @@
         let score = 0;
         let bestScore = localStorage.getItem('2048-best-score') || 0;
         const gridSize = 4;
-        let touchStartX = 0;
-        let touchStartY = 0;
+        let touchStartX = null;
+        let touchStartY = null;
+        let touchEndX = null;
+        let touchEndY = null;
 
         // 初始化游戏
         function initGame() {
@@ -278,8 +280,9 @@
 
             // 添加触摸事件监听
             const container = document.querySelector('.grid-container');
-            container.addEventListener('touchstart', handleTouchStart, false);
-            container.addEventListener('touchmove', handleTouchMove, false);
+            container.addEventListener('touchstart', handleTouchStart, { passive: true });
+            container.addEventListener('touchmove', handleTouchMove, { passive: true });
+            container.addEventListener('touchend', handleTouchEnd, { passive: true });
 
             // 添加键盘事件监听
             document.addEventListener('keydown', handleKeyPress);
@@ -486,36 +489,43 @@
         function handleTouchStart(event) {
             touchStartX = event.touches[0].clientX;
             touchStartY = event.touches[0].clientY;
-            event.preventDefault();
         }
 
         function handleTouchMove(event) {
-            if (!touchStartX || !touchStartY) return;
+            touchEndX = event.touches[0].clientX;
+            touchEndY = event.touches[0].clientY;
+        }
 
-            const touchEndX = event.touches[0].clientX;
-            const touchEndY = event.touches[0].clientY;
+        function handleTouchEnd(event) {
+            if (!touchStartX || !touchStartY || !touchEndX || !touchEndY) return;
 
             const deltaX = touchEndX - touchStartX;
             const deltaY = touchEndY - touchStartY;
-
-            event.preventDefault();
+            const minSwipeDistance = 30; // 降低滑动触发距离
 
             if (Math.abs(deltaX) > Math.abs(deltaY)) {
-                if (deltaX > 50) {
-                    move('right');
-                } else if (deltaX < -50) {
-                    move('left');
+                if (Math.abs(deltaX) > minSwipeDistance) {
+                    if (deltaX > 0) {
+                        move('right');
+                    } else {
+                        move('left');
+                    }
                 }
             } else {
-                if (deltaY > 50) {
-                    move('down');
-                } else if (deltaY < -50) {
-                    move('up');
+                if (Math.abs(deltaY) > minSwipeDistance) {
+                    if (deltaY > 0) {
+                        move('down');
+                    } else {
+                        move('up');
+                    }
                 }
             }
 
+            // 重置触摸状态
             touchStartX = null;
             touchStartY = null;
+            touchEndX = null;
+            touchEndY = null;
         }
 
         // 初始化游戏
