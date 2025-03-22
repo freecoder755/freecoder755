@@ -12,46 +12,72 @@
             background-color: #f0f0f0;
             font-family: Arial, sans-serif;
             margin: 0;
-            padding: 20px;
+            padding: 10px;
+            box-sizing: border-box;
+            width: 100%;
+            overflow-x: hidden;
         }
         .game-container {
             background-color: white;
-            padding: 20px;
+            padding: 15px;
             border-radius: 10px;
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
         }
         #gameBoard {
             border: 2px solid #333;
             background-color: #fff;
+            max-width: 100%;
+            height: auto;
         }
         .controls {
-            margin: 20px 0;
+            margin: 15px 0;
             display: flex;
-            gap: 10px;
+            gap: 8px;
             flex-wrap: wrap;
             justify-content: center;
         }
         button {
-            padding: 10px 20px;
-            font-size: 16px;
+            padding: 8px 16px;
+            font-size: 14px;
             border: none;
             border-radius: 5px;
             background-color: #4CAF50;
             color: white;
             cursor: pointer;
             transition: background-color 0.3s;
+            min-width: 80px;
         }
         button:hover {
             background-color: #45a049;
         }
         .back-button {
             position: fixed;
-            top: 20px;
-            left: 20px;
+            top: 10px;
+            left: 10px;
             background-color: #666;
+            z-index: 1000;
         }
         .back-button:hover {
             background-color: #555;
+        }
+        @media (max-width: 600px) {
+            canvas {
+                width: 100%;
+                height: auto;
+            }
+            .game-container {
+                padding: 10px;
+            }
+            .controls {
+                gap: 5px;
+            }
+            button {
+                padding: 6px 12px;
+                font-size: 12px;
+            }
         }
     </style>
 </head>
@@ -101,13 +127,31 @@
         const ctx = canvas.getContext('2d');
         
         // 设置画布大小
-        canvas.width = 600;
-        canvas.height = 600;
+        function resizeCanvas() {
+            const maxWidth = Math.min(600, window.innerWidth - 40);
+            canvas.width = maxWidth;
+            canvas.height = maxWidth;
+            
+            // 重新计算网格大小
+            gridSize = Math.floor(maxWidth / 30); // 保持30x30的网格
+            cols = canvas.width / gridSize;
+            rows = canvas.height / gridSize;
+            
+            // 重新初始化网格
+            initGrid();
+            drawGrid();
+        }
+        
+        // 监听窗口大小变化
+        window.addEventListener('resize', resizeCanvas);
+        
+        // 初始化时设置画布大小
+        resizeCanvas();
         
         // 网格大小
-        const gridSize = 20;
-        const cols = canvas.width / gridSize;
-        const rows = canvas.height / gridSize;
+        let gridSize = Math.floor(canvas.width / 30);
+        let cols = canvas.width / gridSize;
+        let rows = canvas.height / gridSize;
         
         // 游戏状态
         let grid = Array(rows).fill().map(() => Array(cols).fill(0));
