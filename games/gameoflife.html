@@ -126,6 +126,14 @@
         const canvas = document.getElementById('gameBoard');
         const ctx = canvas.getContext('2d');
         
+        // 游戏状态
+        let grid = [];
+        let isRunning = false;
+        let animationId = null;
+        let gridSize = 20; // 默认网格大小
+        let cols = 0;
+        let rows = 0;
+        
         // 设置画布大小
         function resizeCanvas() {
             const maxWidth = Math.min(600, window.innerWidth - 40);
@@ -134,11 +142,24 @@
             
             // 重新计算网格大小
             gridSize = Math.floor(maxWidth / 30); // 保持30x30的网格
-            cols = canvas.width / gridSize;
-            rows = canvas.height / gridSize;
+            cols = Math.floor(canvas.width / gridSize);
+            rows = Math.floor(canvas.height / gridSize);
+            
+            // 保存当前网格状态
+            const oldGrid = [...grid];
             
             // 重新初始化网格
-            initGrid();
+            grid = Array(rows).fill().map(() => Array(cols).fill(0));
+            
+            // 如果存在旧网格，尝试保持状态
+            if (oldGrid.length > 0) {
+                for (let i = 0; i < Math.min(rows, oldGrid.length); i++) {
+                    for (let j = 0; j < Math.min(cols, oldGrid[0].length); j++) {
+                        grid[i][j] = oldGrid[i][j];
+                    }
+                }
+            }
+            
             drawGrid();
         }
         
@@ -147,16 +168,6 @@
         
         // 初始化时设置画布大小
         resizeCanvas();
-        
-        // 网格大小
-        let gridSize = Math.floor(canvas.width / 30);
-        let cols = canvas.width / gridSize;
-        let rows = canvas.height / gridSize;
-        
-        // 游戏状态
-        let grid = Array(rows).fill().map(() => Array(cols).fill(0));
-        let isRunning = false;
-        let animationId = null;
         
         // 初始化网格
         function initGrid() {
