@@ -69,6 +69,21 @@
         .mode-select {
             margin: 20px 0;
         }
+        .back-button {
+            margin-top: 30px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #666;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .back-button:hover {
+            background-color: #555;
+        }
     </style>
 </head>
 <body>
@@ -85,6 +100,7 @@
             <button onclick="popBubbles(2)" id="pop2">消除2个</button>
             <button onclick="popBubbles(3)" id="pop3">消除3个</button>
         </div>
+        <a href="../index.html" class="back-button">返回主页</a>
     </div>
 
     <script>
@@ -170,9 +186,11 @@
                 return;
             }
 
+            // 只有在游戏未结束时才切换玩家
             currentPlayer = currentPlayer === 1 ? 2 : 1;
             updateStatus();
 
+            // 如果是电脑回合，延迟执行电脑移动
             if (gameMode === 'pvc' && currentPlayer === 2) {
                 setTimeout(computerMove, 1000);
             }
@@ -198,12 +216,17 @@
             const activeBubbles = bubbles.filter(b => b.active).length;
             if (activeBubbles === 0) return;
 
-            // 简单的AI策略：如果剩余4个泡泡，取3个；如果剩余3个泡泡，取2个；如果剩余2个泡泡，取1个
-            // 否则随机取1-3个
+            // 改进AI策略：
+            // 1. 如果剩余4个泡泡，取3个
+            // 2. 如果剩余3个泡泡，取2个
+            // 3. 如果剩余2个泡泡，取1个
+            // 4. 如果剩余1个泡泡，取1个
+            // 5. 否则随机取1-3个
             let move;
             if (activeBubbles === 4) move = 3;
             else if (activeBubbles === 3) move = 2;
             else if (activeBubbles === 2) move = 1;
+            else if (activeBubbles === 1) move = 1;
             else move = Math.floor(Math.random() * 3) + 1;
 
             popBubbles(move);
