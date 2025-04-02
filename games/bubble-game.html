@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>泡泡消除对决</title>
+    <style>
+        .game-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+        }
+        .bubbles {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .bubble {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(145deg, #00bfff, #0099cc);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .bubble:hover {
+            transform: scale(1.1);
+        }
+        .bubble.popped {
+            cursor: not-allowed;
+            transform: scale(0.9);
+        }
+        .bubble.popped.player1 {
+            background: linear-gradient(145deg, #4CAF50, #45a049);
+        }
+        .bubble.popped.player2 {
+            background: linear-gradient(145deg, #f44336, #da190b);
+        }
+        .controls {
+            margin: 20px 0;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 0 5px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .status {
+            font-size: 20px;
+            margin: 20px 0;
+        }
+        .mode-select {
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>泡泡消除对决</h1>
+        <div class="mode-select">
+            <button onclick="setGameMode('pvp')">人人对战</button>
+            <button onclick="setGameMode('pvc')">人机对战</button>
+        </div>
+        <div class="status" id="status">选择游戏模式开始游戏</div>
+        <div class="bubbles" id="bubbles"></div>
+        <div class="controls">
+            <button onclick="popBubbles(1)" id="pop1">消除1个</button>
+            <button onclick="popBubbles(2)" id="pop2">消除2个</button>
+            <button onclick="popBubbles(3)" id="pop3">消除3个</button>
+        </div>
+    </div>
+
+    <script>
+        let totalBubbles; // 初始泡泡数量
+        let currentPlayer = 1; // 1表示玩家1，2表示玩家2或电脑
+        let gameMode = null; // 'pvp' 或 'pvc'
+        let bubbles = [];
+
+        function getRandomBubbleCount() {
+            return Math.floor(Math.random() * 16) + 15; // 15到30之间的随机数
+        }
+
+        function initializeGame() {
+            totalBubbles = getRandomBubbleCount();
+            bubbles = Array(totalBubbles).fill(null).map(() => ({ active: true }));
+            currentPlayer = 1;
+            updateDisplay();
+            updateStatus();
+            enableControls();
+        }
+
+        function setGameMode(mode) {
+            if (gameMode === mode) {
+                // 如果点击的是当前模式，重新开始游戏
+                initializeGame();
+            } else {
+                // 如果切换模式，更新模式并初始化游戏
+                gameMode = mode;
+                initializeGame();
+            }
+        }
+
+        function updateDisplay() {
+            const bubblesContainer = document.getElementById('bubbles');
+            bubblesContainer.innerHTML = '';
+            bubbles.forEach((bubble, index) => {
+                const bubbleElement = document.createElement('div');
+                bubbleElement.className = `bubble ${bubble.active ? '' : 'popped'}`;
+                if (!bubble.active) {
+                    // 根据被消除时的玩家添加对应的颜色类
+                    bubbleElement.classList.add(`player${bubble.player}`);
+                }
+                bubbleElement.textContent = index + 1;
+                bubblesContainer.appendChild(bubbleElement);
+            });
+        }
+
+        function updateStatus() {
+            const status = document.getElementById('status');
+            if (!gameMode) {
+                status.textContent = '请选择游戏模式';
+                return;
+            }
+            const playerName = currentPlayer === 1 ? '玩家1' : (gameMode === 'pvp' ? '玩家2' : '电脑');
+            status.textContent = `当前回合：${playerName}`;
+        }
+
+        function popBubbles(count) {
+            if (!gameMode) return;
+            
+            const activeBubbles = bubbles.filter(b => b.active).length;
+            if (count > activeBubbles) return;
+
+            let poppedCount = 0;
+            for (let i = 0; i < bubbles.length && poppedCount < count; i++) {
+                if (bubbles[i].active) {
+                    bubbles[i] = {
+                        active: false,
+                        player: currentPlayer
+                    };
+                    poppedCount++;
+                }
+            }
+
+            updateDisplay();
+
+            if (isGameOver()) {
+                // 当前玩家被迫按下最后一个泡泡，所以输掉游戏
+                const loser = currentPlayer === 1 ? '玩家1' : (gameMode === 'pvp' ? '玩家2' : '电脑');
+                const winner = currentPlayer === 1 ? (gameMode === 'pvp' ? '玩家2' : '电脑') : '玩家1';
+                document.getElementById('status').textContent = `游戏结束！${loser}被迫按下最后一个泡泡，${winner}获胜！`;
+                disableControls();
+                return;
+            }
+
+            currentPlayer = currentPlayer === 1 ? 2 : 1;
+            updateStatus();
+
+            if (gameMode === 'pvc' && currentPlayer === 2) {
+                setTimeout(computerMove, 1000);
+            }
+        }
+
+        function isGameOver() {
+            return bubbles.filter(b => b.active).length === 0;
+        }
+
+        function disableControls() {
+            document.getElementById('pop1').disabled = true;
+            document.getElementById('pop2').disabled = true;
+            document.getElementById('pop3').disabled = true;
+        }
+
+        function enableControls() {
+            document.getElementById('pop1').disabled = false;
+            document.getElementById('pop2').disabled = false;
+            document.getElementById('pop3').disabled = false;
+        }
+
+        function computerMove() {
+            const activeBubbles = bubbles.filter(b => b.active).length;
+            if (activeBubbles === 0) return;
+
+            // 简单的AI策略：如果剩余4个泡泡，取3个；如果剩余3个泡泡，取2个；如果剩余2个泡泡，取1个
+            // 否则随机取1-3个
+            let move;
+            if (activeBubbles === 4) move = 3;
+            else if (activeBubbles === 3) move = 2;
+            else if (activeBubbles === 2) move = 1;
+            else move = Math.floor(Math.random() * 3) + 1;
+
+            popBubbles(move);
+        }
+
+        // 初始化游戏
+        initializeGame();
+    </script>
+</body>
+</html> 
