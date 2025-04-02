@@ -111,6 +111,12 @@
             cursor: not-allowed;
         }
 
+        .control-btn.auto-driving {
+            background: #4CAF50;
+            border-color: #4CAF50;
+            color: white;
+        }
+
         .game-board {
             background: #fff;
             border-radius: 10px;
@@ -192,6 +198,7 @@
         <button class="control-btn" id="startBtn" onclick="startGame()">开始游戏</button>
         <button class="control-btn" id="pauseBtn" onclick="togglePause()" disabled>暂停</button>
         <button class="control-btn" id="restartBtn" onclick="restartGame()">重新开始</button>
+        <button class="control-btn" id="autoDriveBtn" onclick="toggleAutoDrive()">自动驾驶</button>
     </div>
     <a href="../index.html" class="back-btn">返回主页</a>
 
@@ -217,6 +224,8 @@
         let isPaused = false;
         let currentDifficulty = 'easy';
         let gameStarted = false;
+        let isAutoDriving = false;
+        let autoDriveInterval;
 
         document.getElementById('highScore').textContent = highScore;
 
@@ -330,9 +339,14 @@
 
         function gameOver() {
             clearInterval(gameLoop);
+            if (isAutoDriving) {
+                clearInterval(autoDriveInterval);
+            }
             gameStarted = false;
+            isAutoDriving = false;
             document.getElementById('startBtn').disabled = false;
             document.getElementById('pauseBtn').disabled = true;
+            document.getElementById('autoDriveBtn').classList.remove('auto-driving');
             alert(`游戏结束！得分：${score}`);
         }
 
@@ -381,6 +395,174 @@
             if (gameStarted) {
                 restartGame();
             }
+        }
+
+        function toggleAutoDrive() {
+            const autoDriveBtn = document.getElementById('autoDriveBtn');
+            if (!gameStarted) return;
+            
+            isAutoDriving = !isAutoDriving;
+            autoDriveBtn.classList.toggle('auto-driving');
+            
+            if (isAutoDriving) {
+                autoDriveInterval = setInterval(autoDrive, 100);
+            } else {
+                clearInterval(autoDriveInterval);
+            }
+        }
+
+        function findPathToFood(start, target) {
+            const queue = [[start]];
+            const visited = new Set();
+            visited.add(`${start.x},${start.y}`);
+            
+            while (queue.length > 0) {
+                const path = queue.shift();
+                const current = path[path.length - 1];
+                
+                if (current.x === target.x && current.y === target.y) {
+                    // 检查这条路径是否安全（不会进入狭窄空间）
+                    if (isPathSafe(path)) {
+                        return path;
+                    }
+                }
+                
+                const directions = [
+                    { dx: 0, dy: -1 }, // 上
+                    { dx: 0, dy: 1 },  // 下
+                    { dx: -1, dy: 0 }, // 左
+                    { dx: 1, dy: 0 }   // 右
+                ];
+                
+                // 根据到食物的距离对方向进行排序，优先选择更接近食物的方向
+                directions.sort((a, b) => {
+                    const posA = { x: current.x + a.dx, y: current.y + a.dy };
+                    const posB = { x: current.x + b.dx, y: current.y + b.dy };
+                    return getDistance(posA, target) - getDistance(posB, target);
+                });
+                
+                for (const dir of directions) {
+                    const next = {
+                        x: current.x + dir.dx,
+                        y: current.y + dir.dy
+                    };
+                    
+                    if (isValidMove(next) && !visited.has(`${next.x},${next.y}`)) {
+                        visited.add(`${next.x},${next.y}`);
+                        queue.push([...path, next]);
+                    }
+                }
+            }
+            
+            return null;
+        }
+
+        function getDistance(pos1, pos2) {
+            return Math.abs(pos1.x - pos2.x) + Math.abs(pos1.y - pos2.y);
+        }
+
+        function isPathSafe(path) {
+            // 检查路径上的每个点是否有足够的空间
+            for (let i = 0; i < path.length; i++) {
+                const pos = path[i];
+                const availableSpace = calculateAvailableSpace(pos);
+                // 如果可用空间小于蛇长度的2倍，认为不安全
+                if (availableSpace < snake.length * 2) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        function calculateAvailableSpace(pos) {
+            const visited = new Set();
+            const queue = [pos];
+            visited.add(`${pos.x},${pos.y}`);
+            let space = 0;
+            
+            while (queue.length > 0) {
+                const current = queue.shift();
+                space++;
+                
+                const directions = [
+                    { dx: 0, dy: -1 }, // 上
+                    { dx: 0, dy: 1 },  // 下
+                    { dx: -1, dy: 0 }, // 左
+                    { dx: 1, dy: 0 }   // 右
+                ];
+                
+                for (const dir of directions) {
+                    const next = {
+                        x: current.x + dir.dx,
+                        y: current.y + dir.dy
+                    };
+                    
+                    if (isValidMove(next) && !visited.has(`${next.x},${next.y}`)) {
+                        visited.add(`${next.x},${next.y}`);
+                        queue.push(next);
+                    }
+                }
+            }
+            
+            return space;
+        }
+
+        function autoDrive() {
+            if (!gameStarted || isPaused) return;
+            
+            const head = snake[0];
+            const path = findPathToFood(head, food);
+            
+            if (path && path.length > 1) {
+                const nextMove = path[1];
+                const dx = nextMove.x - head.x;
+                const dy = nextMove.y - head.y;
+                
+                if (dx === 0 && dy === -1) nextDirection = 'up';
+                else if (dx === 0 && dy === 1) nextDirection = 'down';
+                else if (dx === -1 && dy === 0) nextDirection = 'left';
+                else if (dx === 1 && dy === 0) nextDirection = 'right';
+            } else {
+                // 如果找不到安全路径，尝试寻找最安全的方向
+                const safeDirection = findSafestDirection();
+                if (safeDirection) {
+                    nextDirection = safeDirection;
+                }
+            }
+        }
+
+        function findSafestDirection() {
+            const head = snake[0];
+            const directions = [
+                { dir: 'up', dx: 0, dy: -1 },
+                { dir: 'down', dx: 0, dy: 1 },
+                { dir: 'left', dx: -1, dy: 0 },
+                { dir: 'right', dx: 1, dy: 0 }
+            ];
+            
+            // 评估每个方向的安全性
+            const directionScores = directions.map(({ dir, dx, dy }) => {
+                const next = { x: head.x + dx, y: head.y + dy };
+                if (!isValidMove(next)) {
+                    return { dir, score: -1 };
+                }
+                const space = calculateAvailableSpace(next);
+                return { dir, score: space };
+            });
+            
+            // 选择得分最高的方向
+            directionScores.sort((a, b) => b.score - a.score);
+            return directionScores[0].score > 0 ? directionScores[0].dir : null;
+        }
+
+        function isValidMove(pos) {
+            // 检查是否在边界内
+            if (pos.x < 0 || pos.x >= tileCount || pos.y < 0 || pos.y >= tileCount) {
+                return false;
+            }
+            
+            // 检查是否撞到蛇身
+            return !snake.some(segment => segment.x === pos.x && segment.y === pos.y);
         }
 
         // 键盘控制
