@@ -59,6 +59,19 @@
         .back-button:hover {
             background-color: #555;
         }
+        .speed-control {
+            margin: 15px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            justify-content: center;
+        }
+        .speed-control input {
+            width: 200px;
+        }
+        .speed-control label {
+            min-width: 100px;
+        }
         @media (max-width: 600px) {
             canvas {
                 width: 100%;
@@ -88,8 +101,13 @@
             <button onclick="randomize()">随机</button>
             <button class="back-button" onclick="location.href='../index.html'">返回主页</button>
         </div>
+        <div class="speed-control">
+            <label for="speed">游戏速度：</label>
+            <input type="range" id="speed" min="1" max="10" value="5" step="1">
+            <span id="speedValue">5</span> 次/秒
+        </div>
         <div style="margin-top: 20px;">
-            <p>点击格子来创建或删除细胞</p>
+            <p>左键拖动添加细胞，右键拖动删除细胞</p>
             <p>游戏规则：</p>
             <ul>
                 <li>每个格子代表一个细胞，可以是活的（绿色）或死的（白色）</li>
@@ -109,11 +127,12 @@
             </ul>
             <p>操作说明：</p>
             <ul>
-                <li>点击格子可以切换细胞的生死状态</li>
+                <li>左键拖动可以添加细胞，右键拖动可以删除细胞</li>
                 <li>点击"随机"按钮可以随机生成初始状态</li>
                 <li>点击"开始"按钮开始演化</li>
                 <li>点击"暂停"按钮暂停演化</li>
                 <li>点击"重置"按钮清空所有细胞</li>
+                <li>使用速度滑块调整游戏速度</li>
             </ul>
         </div>
     </div>
@@ -121,14 +140,18 @@
     <script>
         const canvas = document.getElementById('gameBoard');
         const ctx = canvas.getContext('2d');
+        const speedSlider = document.getElementById('speed');
+        const speedValue = document.getElementById('speedValue');
         
         // 游戏状态
         let grid = [];
         let isRunning = false;
         let animationId = null;
-        let gridSize = 20; // 默认网格大小
+        let gridSize = 10; // 减小网格大小以增加密度
         let cols = 0;
         let rows = 0;
+        let isDrawing = false;
+        let drawMode = 1; // 1表示添加细胞，0表示删除细胞
         
         // 设置画布大小
         function resizeCanvas() {
@@ -137,7 +160,7 @@
             canvas.height = maxWidth;
             
             // 重新计算网格大小
-            gridSize = Math.floor(maxWidth / 30); // 保持30x30的网格
+            gridSize = Math.floor(maxWidth / 60); // 保持60x60的网格
             cols = Math.floor(canvas.width / gridSize);
             rows = Math.floor(canvas.height / gridSize);
             
@@ -174,6 +197,22 @@
         function drawGrid() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
+            // 绘制网格线
+            ctx.strokeStyle = '#ddd';
+            for (let i = 0; i <= rows; i++) {
+                ctx.beginPath();
+                ctx.moveTo(0, i * gridSize);
+                ctx.lineTo(canvas.width, i * gridSize);
+                ctx.stroke();
+            }
+            for (let j = 0; j <= cols; j++) {
+                ctx.beginPath();
+                ctx.moveTo(j * gridSize, 0);
+                ctx.lineTo(j * gridSize, canvas.height);
+                ctx.stroke();
+            }
+            
+            // 绘制细胞
             for (let i = 0; i < rows; i++) {
                 for (let j = 0; j < cols; j++) {
                     if (grid[i][j] === 1) {
@@ -253,14 +292,15 @@
         function animate() {
             nextGeneration();
             if (isRunning) {
+                const speed = parseInt(speedSlider.value);
                 setTimeout(() => {
                     animationId = requestAnimationFrame(animate);
-                }, 200);
+                }, 1000 / speed);
             }
         }
         
         // 鼠标事件处理
-        canvas.addEventListener('click', (e) => {
+        function handleMouseEvent(e) {
             const rect = canvas.getBoundingClientRect();
             const x = e.clientX - rect.left;
             const y = e.clientY - rect.top;
@@ -269,9 +309,34 @@
             const row = Math.floor(y / gridSize);
             
             if (row >= 0 && row < rows && col >= 0 && col < cols) {
-                grid[row][col] = grid[row][col] === 1 ? 0 : 1;
+                grid[row][col] = drawMode;
                 drawGrid();
             }
+        }
+        
+        canvas.addEventListener('mousedown', (e) => {
+            isDrawing = true;
+            drawMode = e.button === 0 ? 1 : 0; // 左键添加，右键删除
+            handleMouseEvent(e);
+        });
+        
+        canvas.addEventListener('mousemove', (e) => {
+            if (isDrawing) {
+                handleMouseEvent(e);
+            }
+        });
+        
+        canvas.addEventListener('mouseup', () => {
+            isDrawing = false;
+        });
+        
+        canvas.addEventListener('mouseleave', () => {
+            isDrawing = false;
+        });
+        
+        // 速度滑块事件
+        speedSlider.addEventListener('input', () => {
+            speedValue.textContent = speedSlider.value;
         });
         
         // 初始化游戏
@@ -279,4 +344,4 @@
         drawGrid();
     </script>
 </body>
-</html> 
+</html>
