@@ -55,6 +55,18 @@
             color: #fff;
         }
 
+        .score-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding: 0 10px;
+        }
+
+        .score {
+            font-size: 1.1em;
+            color: #ffd700;
+        }
+
         .cards-container {
             display: flex;
             gap: 8px;
@@ -104,6 +116,11 @@
             color: white;
         }
 
+        .btn-reset-score {
+            background: #9C27B0;
+            color: white;
+        }
+
         .btn-new-game {
             background: #2196F3;
             color: white;
@@ -119,18 +136,39 @@
             cursor: not-allowed;
         }
 
-        .score {
-            font-size: 1.1em;
-            margin-bottom: 8px;
-            color: #ffd700;
-        }
-
         .message {
             text-align: center;
             font-size: 1.2em;
             margin: 15px 0;
             color: #ffd700;
             text-shadow: 0 0 5px rgba(255, 215, 0, 0.3);
+        }
+
+        /* 计分板样式 */
+        .scoreboard {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            padding: 10px 15px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .scoreboard-title {
+            font-size: 1.2em;
+            color: #ffd700;
+            margin-bottom: 5px;
+        }
+
+        .scoreboard-stats {
+            display: flex;
+            justify-content: space-around;
+            font-size: 1.1em;
+            gap: 20px;
+        }
+
+        .scoreboard-stat {
+            color: #fff;
+            white-space: nowrap;
         }
 
         @keyframes cardDeal {
@@ -219,15 +257,25 @@
 <body>
     <div class="game-container">
         <h1 class="game-title">21点游戏</h1>
+        <div class="scoreboard">
+            <div class="scoreboard-title">计分板</div>
+            <div class="scoreboard-stats">
+                <div class="scoreboard-stat">胜: <span id="wins">0</span></div>
+                <div class="scoreboard-stat">负: <span id="losses">0</span></div>
+                <div class="scoreboard-stat">平: <span id="draws">0</span></div>
+            </div>
+        </div>
         <div class="game-area">
             <div class="dealer-area">
                 <h2 class="area-title">庄家</h2>
-                <div class="score" id="dealer-score">得分: 0</div>
+                <div class="score-row">
+                    <div class="score" id="dealer-score">得分: 0</div>
+                    <div class="score" id="player-score">得分: 0</div>
+                </div>
                 <div class="cards-container" id="dealer-cards"></div>
             </div>
             <div class="player-area">
                 <h2 class="area-title">玩家</h2>
-                <div class="score" id="player-score">得分: 0</div>
                 <div class="cards-container" id="player-cards"></div>
             </div>
         </div>
@@ -236,6 +284,7 @@
             <button class="btn btn-new-game" id="new-game">新游戏</button>
             <button class="btn btn-hit" id="hit">要牌</button>
             <button class="btn btn-stand" id="stand">停牌</button>
+            <button class="btn btn-reset-score" id="reset-score">重新计分</button>
             <button class="btn" onclick="location.href='../index.html'">返回主页</button>
         </div>
     </div>
@@ -257,7 +306,12 @@
             dealerHand: [],
             gameOver: true,
             playerScore: 0,
-            dealerScore: 0
+            dealerScore: 0,
+            stats: {
+                wins: 0,
+                losses: 0,
+                draws: 0
+            }
         };
 
         // 卡牌花色和点数
@@ -374,8 +428,15 @@
             });
 
             // 更新分数
-            playerScoreElement.textContent = `得分: ${gameState.playerScore}`;
-            dealerScoreElement.textContent = `得分: ${gameState.gameOver ? gameState.dealerScore : '?'}`;
+            playerScoreElement.textContent = `玩家得分: ${gameState.playerScore}`;
+            dealerScoreElement.textContent = `庄家得分: ${gameState.gameOver ? gameState.dealerScore : '?'}`;
+        }
+
+        // 更新计分板
+        function updateScoreboard() {
+            document.getElementById('wins').textContent = gameState.stats.wins;
+            document.getElementById('losses').textContent = gameState.stats.losses;
+            document.getElementById('draws').textContent = gameState.stats.draws;
         }
 
         // 开始新游戏
@@ -387,7 +448,8 @@
                 dealerHand: [],
                 gameOver: false,
                 playerScore: 0,
-                dealerScore: 0
+                dealerScore: 0,
+                stats: gameState.stats  // 保留原有的计分
             };
 
             // 发初始牌
@@ -409,6 +471,16 @@
             document.getElementById('stand').disabled = false;
         }
 
+        // 重置计分
+        function resetScore() {
+            gameState.stats = {
+                wins: 0,
+                losses: 0,
+                draws: 0
+            };
+            updateScoreboard();
+        }
+
         // 要牌
         function hit() {
             if (gameState.gameOver) return;
@@ -417,6 +489,8 @@
             gameState.playerScore = calculateScore(gameState.playerHand);
 
             if (gameState.playerScore > 21) {
+                gameState.stats.losses++;
+                updateScoreboard();
                 endGame('爆牌了！庄家胜！');
             }
 
@@ -437,13 +511,18 @@
             let message = '';
             if (gameState.dealerScore > 21) {
                 message = '庄家爆牌！\n你赢了！';
+                gameState.stats.wins++;
             } else if (gameState.dealerScore > gameState.playerScore) {
                 message = `庄家点数：${gameState.dealerScore}\n你的点数：${gameState.playerScore}\n庄家赢了！`;
+                gameState.stats.losses++;
             } else if (gameState.dealerScore < gameState.playerScore) {
                 message = `庄家点数：${gameState.dealerScore}\n你的点数：${gameState.playerScore}\n恭喜你赢了！`;
+                gameState.stats.wins++;
             } else {
                 message = `庄家点数：${gameState.dealerScore}\n你的点数：${gameState.playerScore}\n平局！`;
+                gameState.stats.draws++;
             }
+            updateScoreboard();
             endGame(message);
         }
 
@@ -461,6 +540,7 @@
         document.getElementById('new-game').addEventListener('click', startNewGame);
         document.getElementById('hit').addEventListener('click', hit);
         document.getElementById('stand').addEventListener('click', stand);
+        document.getElementById('reset-score').addEventListener('click', resetScore);
         dialogClose.addEventListener('click', startNewGame);
 
         // 初始化游戏
