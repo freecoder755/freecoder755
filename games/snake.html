@@ -412,99 +412,164 @@
         }
 
         function findPathToFood(start, target) {
-            const queue = [[start]];
-            const visited = new Set();
-            visited.add(`${start.x},${start.y}`);
+            // 直接计算到食物的方向
+            const dx = target.x - start.x;
+            const dy = target.y - start.y;
             
-            while (queue.length > 0) {
-                const path = queue.shift();
-                const current = path[path.length - 1];
-                
-                if (current.x === target.x && current.y === target.y) {
-                    // 检查这条路径是否安全（不会进入狭窄空间）
-                    if (isPathSafe(path)) {
-                        return path;
-                    }
-                }
-                
-                const directions = [
-                    { dx: 0, dy: -1 }, // 上
-                    { dx: 0, dy: 1 },  // 下
-                    { dx: -1, dy: 0 }, // 左
-                    { dx: 1, dy: 0 }   // 右
-                ];
-                
-                // 根据到食物的距离对方向进行排序，优先选择更接近食物的方向
-                directions.sort((a, b) => {
-                    const posA = { x: current.x + a.dx, y: current.y + a.dy };
-                    const posB = { x: current.x + b.dx, y: current.y + b.dy };
-                    return getDistance(posA, target) - getDistance(posB, target);
+            // 获取所有可能的移动方向
+            const possibleMoves = [
+                { x: start.x + (dx > 0 ? 1 : -1), y: start.y }, // 水平移动
+                { x: start.x, y: start.y + (dy > 0 ? 1 : -1) }, // 垂直移动
+                { x: start.x - (dx > 0 ? 1 : -1), y: start.y }, // 反向水平
+                { x: start.x, y: start.y - (dy > 0 ? 1 : -1) }  // 反向垂直
+            ];
+            
+            // 评估每个可能的移动
+            const moves = possibleMoves.map(move => ({
+                move,
+                isValid: isValidMove(move),
+                isDeadEnd: isDeadEnd(move),
+                distance: Math.abs(move.x - target.x) + Math.abs(move.y - target.y),
+                wallDist: getWallDistance(move)
+            }));
+            
+            // 过滤出有效的移动
+            const validMoves = moves.filter(m => m.isValid && !m.isDeadEnd);
+            
+            if (validMoves.length > 0) {
+                // 优先选择距离食物最近的移动，同时考虑墙壁距离
+                validMoves.sort((a, b) => {
+                    const scoreA = a.distance + (tileCount - a.wallDist) * 0.5;
+                    const scoreB = b.distance + (tileCount - b.wallDist) * 0.5;
+                    return scoreA - scoreB;
                 });
+                return [start, validMoves[0].move];
+            }
+            
+            // 如果没有有效的移动，尝试不检查死胡同的移动
+            const safeMoves = moves.filter(m => m.isValid);
+            if (safeMoves.length > 0) {
+                safeMoves.sort((a, b) => {
+                    const scoreA = a.distance + (tileCount - a.wallDist) * 0.5;
+                    const scoreB = b.distance + (tileCount - b.wallDist) * 0.5;
+                    return scoreA - scoreB;
+                });
+                return [start, safeMoves[0].move];
+            }
+            
+            // 如果都不可行，寻找一个安全的移动方向
+            return findSafestSingleStep(start);
+        }
+
+        function isDeadEnd(pos) {
+            // 检查是否是死胡同
+            const directions = [
+                { dx: 0, dy: -1 },
+                { dx: 0, dy: 1 },
+                { dx: -1, dy: 0 },
+                { dx: 1, dy: 0 }
+            ];
+            
+            let blockedDirections = 0;
+            let availableDirections = [];
+            
+            for (const dir of directions) {
+                const next = {
+                    x: pos.x + dir.dx,
+                    y: pos.y + dir.dy
+                };
                 
-                for (const dir of directions) {
-                    const next = {
-                        x: current.x + dir.dx,
-                        y: current.y + dir.dy
-                    };
-                    
-                    if (isValidMove(next) && !visited.has(`${next.x},${next.y}`)) {
-                        visited.add(`${next.x},${next.y}`);
-                        queue.push([...path, next]);
-                    }
+                if (!isValidMove(next)) {
+                    blockedDirections++;
+                } else {
+                    availableDirections.push(next);
                 }
+            }
+            
+            // 如果三个方向被堵住，检查剩余方向是否是死胡同
+            if (blockedDirections >= 3) {
+                return true;
+            }
+            
+            // 如果两个方向被堵住，检查剩余方向是否安全
+            if (blockedDirections === 2) {
+                // 检查剩余方向是否都是死胡同
+                return availableDirections.every(next => {
+                    let nextBlocked = 0;
+                    for (const dir of directions) {
+                        const nextNext = {
+                            x: next.x + dir.dx,
+                            y: next.y + dir.dy
+                        };
+                        if (!isValidMove(nextNext)) {
+                            nextBlocked++;
+                        }
+                    }
+                    return nextBlocked >= 3;
+                });
+            }
+            
+            return false;
+        }
+
+        function findSafestSingleStep(start) {
+            const directions = [
+                { dir: 'up', dx: 0, dy: -1 },
+                { dir: 'down', dx: 0, dy: 1 },
+                { dir: 'left', dx: -1, dy: 0 },
+                { dir: 'right', dx: 1, dy: 0 }
+            ];
+            
+            // 评估每个方向的安全性
+            const directionScores = directions.map(({ dir, dx, dy }) => {
+                const next = { x: start.x + dx, y: start.y + dy };
+                if (!isValidMove(next)) {
+                    return { dir, score: -1 };
+                }
+                
+                // 计算到墙壁的距离和是否是死胡同
+                const wallDist = getWallDistance(next);
+                const deadEnd = isDeadEnd(next);
+                
+                // 评分：优先选择远离墙壁且不是死胡同的方向
+                return { 
+                    dir, 
+                    score: wallDist * (deadEnd ? 0.5 : 1)
+                };
+            });
+            
+            // 选择得分最高的方向
+            directionScores.sort((a, b) => b.score - a.score);
+            const bestDir = directionScores[0];
+            
+            if (bestDir.score > 0) {
+                const next = {
+                    x: start.x + directions.find(d => d.dir === bestDir.dir).dx,
+                    y: start.y + directions.find(d => d.dir === bestDir.dir).dy
+                };
+                return [start, next];
             }
             
             return null;
         }
 
-        function getDistance(pos1, pos2) {
-            return Math.abs(pos1.x - pos2.x) + Math.abs(pos1.y - pos2.y);
+        function getWallDistance(pos) {
+            return Math.min(
+                pos.x,
+                pos.y,
+                tileCount - 1 - pos.x,
+                tileCount - 1 - pos.y
+            );
         }
 
-        function isPathSafe(path) {
-            // 检查路径上的每个点是否有足够的空间
-            for (let i = 0; i < path.length; i++) {
-                const pos = path[i];
-                const availableSpace = calculateAvailableSpace(pos);
-                // 如果可用空间小于蛇长度的2倍，认为不安全
-                if (availableSpace < snake.length * 2) {
-                    return false;
-                }
-            }
-            return true;
-        }
-
-        function calculateAvailableSpace(pos) {
-            const visited = new Set();
-            const queue = [pos];
-            visited.add(`${pos.x},${pos.y}`);
-            let space = 0;
-            
-            while (queue.length > 0) {
-                const current = queue.shift();
-                space++;
-                
-                const directions = [
-                    { dx: 0, dy: -1 }, // 上
-                    { dx: 0, dy: 1 },  // 下
-                    { dx: -1, dy: 0 }, // 左
-                    { dx: 1, dy: 0 }   // 右
-                ];
-                
-                for (const dir of directions) {
-                    const next = {
-                        x: current.x + dir.dx,
-                        y: current.y + dir.dy
-                    };
-                    
-                    if (isValidMove(next) && !visited.has(`${next.x},${next.y}`)) {
-                        visited.add(`${next.x},${next.y}`);
-                        queue.push(next);
-                    }
-                }
+        function isValidMove(pos) {
+            // 检查是否在边界内
+            if (pos.x < 0 || pos.x >= tileCount || pos.y < 0 || pos.y >= tileCount) {
+                return false;
             }
             
-            return space;
+            // 检查是否撞到蛇身
+            return !snake.some(segment => segment.x === pos.x && segment.y === pos.y);
         }
 
         function autoDrive() {
@@ -523,7 +588,7 @@
                 else if (dx === -1 && dy === 0) nextDirection = 'left';
                 else if (dx === 1 && dy === 0) nextDirection = 'right';
             } else {
-                // 如果找不到安全路径，尝试寻找最安全的方向
+                // 如果找不到路径，尝试寻找最安全的方向
                 const safeDirection = findSafestDirection();
                 if (safeDirection) {
                     nextDirection = safeDirection;
@@ -546,23 +611,12 @@
                 if (!isValidMove(next)) {
                     return { dir, score: -1 };
                 }
-                const space = calculateAvailableSpace(next);
-                return { dir, score: space };
+                return { dir, score: 1 };
             });
             
             // 选择得分最高的方向
             directionScores.sort((a, b) => b.score - a.score);
             return directionScores[0].score > 0 ? directionScores[0].dir : null;
-        }
-
-        function isValidMove(pos) {
-            // 检查是否在边界内
-            if (pos.x < 0 || pos.x >= tileCount || pos.y < 0 || pos.y >= tileCount) {
-                return false;
-            }
-            
-            // 检查是否撞到蛇身
-            return !snake.some(segment => segment.x === pos.x && segment.y === pos.y);
         }
 
         // 键盘控制

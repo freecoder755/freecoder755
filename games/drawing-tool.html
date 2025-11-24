@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>绘图工具</title>
+    <link rel="stylesheet" href="../styles.css">
+    <style>
+        body, html {
+            height: 100%;
+            overflow: hidden;
+            margin: 0;
+        }
+        #toolbar {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            padding: 15px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 15px;
+            z-index: 100;
+        }
+        #colorPicker {
+            width: 40px;
+            height: 40px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+        }
+        #brushSize {
+            width: 100px;
+        }
+        button {
+            background: #2c3e50;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #34495e;
+        }
+        #canvas {
+            display: block;
+            background: white;
+        }
+        #fullscreenBtn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+    <button id="fullscreenBtn">全屏</button>
+    <div id="toolbar">
+        <input type="color" id="colorPicker" value="#000000">
+        <input type="range" id="brushSize" min="1" max="50" value="5">
+        <span id="sizeValue">5px</span>
+        <button id="undoBtn">撤销</button>
+        <button id="clearBtn">清除</button>
+    </div>
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const colorPicker = document.getElementById('colorPicker');
+        const brushSize = document.getElementById('brushSize');
+        const sizeValue = document.getElementById('sizeValue');
+        const undoBtn = document.getElementById('undoBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
+
+        // 设置canvas尺寸
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // 绘图状态
+        let isDrawing = false;
+        let lastX = 0;
+        let lastY = 0;
+        let currentColor = '#000000';
+        let currentSize = 5;
+        let history = [];
+        let historyIndex = -1;
+
+        // 保存当前画布状态到历史记录
+        function saveState() {
+            // 只保存当前状态之前的历史
+            history = history.slice(0, historyIndex + 1);
+            history.push(canvas.toDataURL());
+            historyIndex = history.length - 1;
+        }
+
+        // 从历史记录恢复
+        function restoreState(index) {
+            if (index >= 0 && index < history.length) {
+                const img = new Image();
+                img.src = history[index];
+                img.onload = () => {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(img, 0, 0);
+                };
+                historyIndex = index;
+            }
+        }
+
+        // 绘制函数
+        function draw(e) {
+            if (!isDrawing) return;
+
+            ctx.strokeStyle = currentColor;
+            ctx.lineWidth = currentSize;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
+            ctx.lineTo(e.offsetX || e.touches[0].clientX, e.offsetY || e.touches[0].clientY);
+            ctx.stroke();
+
+            [lastX, lastY] = [e.offsetX || e.touches[0].clientX, e.offsetY || e.touches[0].clientY];
+        }
+
+        // 鼠标事件
+        canvas.addEventListener('mousedown', (e) => {
+            isDrawing = true;
+            [lastX, lastY] = [e.offsetX, e.offsetY];
+            saveState();
+        });
+
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', () => isDrawing = false);
+        canvas.addEventListener('mouseout', () => isDrawing = false);
+
+        // 触摸事件
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            isDrawing = true;
+            [lastX, lastY] = [e.touches[0].clientX, e.touches[0].clientY];
+            saveState();
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            draw(e);
+        });
+
+        canvas.addEventListener('touchend', () => isDrawing = false);
+        canvas.addEventListener('touchcancel', () => isDrawing = false);
+
+        // 颜色选择
+        colorPicker.addEventListener('input', (e) => {
+            currentColor = e.target.value;
+        });
+
+        // 画笔大小
+        brushSize.addEventListener('input', (e) => {
+            currentSize = e.target.value;
+            sizeValue.textContent = `${currentSize}px`;
+        });
+
+        // 撤销功能
+        undoBtn.addEventListener('click', () => {
+            if (historyIndex > 0) {
+                historyIndex--;
+                restoreState(historyIndex);
+            } else if (historyIndex === 0) {
+                historyIndex--;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+        });
+
+        // 清除画布
+        clearBtn.addEventListener('click', () => {
+            saveState();
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        });
+
+        // 全屏功能
+        fullscreenBtn.addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    alert(`全屏请求错误: ${err.message}`);
+                });
+                fullscreenBtn.textContent = '退出全屏';
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                    fullscreenBtn.textContent = '全屏';
+                }
+            }
+        });
+
+        // 监听全屏变化
+        document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement) {
+                fullscreenBtn.textContent = '全屏';
+            } else {
+                fullscreenBtn.textContent = '退出全屏';
+            }
+            resizeCanvas();
+            if (historyIndex >= 0) {
+                restoreState(historyIndex);
+            }
+        });
+    </script>
+</body>
+</html>
