@@ -24,12 +24,21 @@
             gap: 15px;
             z-index: 100;
         }
-        #colorPicker {
+        .color-btn {
             width: 40px;
             height: 40px;
-            border: none;
-            background: transparent;
+            border: 2px solid #ddd;
+            border-radius: 50%;
             cursor: pointer;
+            margin: 0 5px;
+        }
+        .color-btn.active {
+            border-color: #2c3e50;
+            transform: scale(1.1);
+        }
+        #eraserBtn {
+            background: #f5f5f5;
+            color: #333;
         }
         #brushSize {
             width: 100px;
@@ -61,7 +70,12 @@
 <body>
     <button id="fullscreenBtn">全屏</button>
     <div id="toolbar">
-        <input type="color" id="colorPicker" value="#000000">
+        <div class="color-buttons">
+            <button class="color-btn active" data-color="#000000" style="background-color: #000000;"></button>
+            <button class="color-btn" data-color="#FF0000" style="background-color: #FF0000;"></button>
+            <button class="color-btn" data-color="#0000FF" style="background-color: #0000FF;"></button>
+            <button id="eraserBtn" class="tool-btn">橡皮</button>
+        </div>
         <input type="range" id="brushSize" min="1" max="50" value="5">
         <span id="sizeValue">5px</span>
         <button id="undoBtn">撤销</button>
@@ -72,7 +86,8 @@
     <script>
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
-        const colorPicker = document.getElementById('colorPicker');
+        const colorButtons = document.querySelectorAll('.color-btn');
+        const eraserBtn = document.getElementById('eraserBtn');
         const brushSize = document.getElementById('brushSize');
         const sizeValue = document.getElementById('sizeValue');
         const undoBtn = document.getElementById('undoBtn');
@@ -163,8 +178,24 @@
         canvas.addEventListener('touchcancel', () => isDrawing = false);
 
         // 颜色选择
-        colorPicker.addEventListener('input', (e) => {
-            currentColor = e.target.value;
+        // 颜色选择功能
+        colorButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                currentColor = e.target.dataset.color;
+                // 更新选中状态
+                colorButtons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                // 确保橡皮擦未激活
+                eraserBtn.classList.remove('active');
+            });
+        });
+
+        // 橡皮擦功能
+        eraserBtn.addEventListener('click', () => {
+            currentColor = '#FFFFFF'; // 假设背景是白色
+            // 更新按钮状态
+            colorButtons.forEach(b => b.classList.remove('active'));
+            eraserBtn.classList.add('active');
         });
 
         // 画笔大小
